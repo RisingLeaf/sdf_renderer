@@ -7,22 +7,19 @@ uniform float u_time;
 uniform vec3 origin;
 uniform mat3 rotMat;
 
-const float NUM_OF_STEPS = 1000000.0;
-const float MIN_DIST_TO_SDF = 0.0000001;
-const float MAX_DIST_TO_TRAVEL = 8.0;
+const float NUM_OF_STEPS = 1000000000.0;
+const float MIN_DIST_TO_SDF = 0.0000000001;
+const float MAX_DIST_TO_TRAVEL = 6.0;
 
-float de(vec3 pos)
-{
-  vec3 tpos=pos;
-  tpos.xz=abs(.5-mod(tpos.xz,1.));
-  vec4 p=vec4(tpos,1.);
-  float y=max(0.,.35-abs(pos.y-3.35))/.35;
-  for (int i=0; i<7; i++) {
-    p.xyz = abs(p.xyz)-vec3(-0.02,1.98,-0.02);
-    p=p*(2.0+0.*y)/clamp(dot(p.xyz,p.xyz),.4,1.)-vec4(0.5,1.,0.4,0.);
-    p.xz*=mat2(-0.416,-0.91,0.91,-0.416);
-  }
-  return (length(max(abs(p.xyz)-vec3(0.1,5.0,0.1),vec3(0.0)))-0.05)/p.w;
+float de ( vec3 p ){
+  float S = 1.0f;
+  float R, e;
+  p.y += p.z;
+  float time = u_time / 100.;
+  p = vec3( log( R = length( p ) ) - time, asin( -p.z / R ), atan( p.x, p.y ) + time );
+  for( e = p.y - 1.5f; S < 6e2; S += S )
+    e += sqrt( abs( dot( sin( p.zxy * S ), cos( p * S ) ) ) ) / S;
+  return e * R * 0.1f * 0.9;
 }
 
 float rayMarch(vec3 ro, vec3 rd, float maxDistToTravel)
@@ -111,5 +108,5 @@ vec3 render(vec2 uv)
 void main()
 {
   vec3 color = render(uv);
-  FragColor = vec4(color, 0.1);
+  FragColor = vec4(color, 1.);
 }

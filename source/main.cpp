@@ -12,6 +12,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/geometric.hpp>
+#include <glm/gtx/string_cast.hpp>
 
 
 
@@ -68,7 +69,7 @@ int main(int argc, const char **argv)
   int s = 0;
   int h = 0;
   glm::vec3 up(0.0f, 1.0f, 0.0f);
-  glm::vec3 origin(0.);
+  glm::vec3 origin(2.5, 5., 0.);
   glm::mat3 rotMat(1.);
   glm::vec3 forwardDirection(1., 0., 0.);
   bool cameraMoving = false;
@@ -76,9 +77,6 @@ int main(int argc, const char **argv)
   float pitch = 0.;
   float lastX = 0.;
   float lastY = 0.;
-  float focal_point = 0.1f;
-  float delta_focal = 0.;
-  int n = 5;
   while(!window.ShouldClose())
   {
     delta = (second - first) / CLOCKS_PER_SEC;
@@ -111,15 +109,6 @@ int main(int argc, const char **argv)
           case GLFW_KEY_LEFT_SHIFT:
             h -= m;
             break;
-          case GLFW_KEY_Q:
-            delta_focal -= m;
-            break;
-          case GLFW_KEY_E:
-            delta_focal += m;
-            break;
-          case GLFW_KEY_R:
-            n += m * 45;
-            break;
           default:
             break;
         }
@@ -144,9 +133,6 @@ int main(int argc, const char **argv)
           sin(pitch),
           sin(yaw) * cos(pitch)
         ));
-
-        // Construct the view rotation matrix
-        rotMat = LookAt(forwardDirection, up);
       }
     }
 
@@ -158,13 +144,15 @@ int main(int argc, const char **argv)
     if(s != 0)
       origin += glm::normalize(glm::cross(forwardDirection, up)) * static_cast<float>(delta * SPEED * s);
 
-    focal_point += delta_focal * delta * SPEED / 2;
-    focal_point = std::max<float>(0.01, focal_point);
-
     u_time += delta * 1000;
 
 
     // DRAW
+
+    // Construct the view rotation matrix
+    rotMat = LookAt(forwardDirection, up);
+
+    glClear(GL_COLOR_BUFFER_BIT);
     shader.bind();
 
     glBindVertexArray(VAO);
@@ -173,27 +161,14 @@ int main(int argc, const char **argv)
 
     glUniform1f(shader.UniformLocation("u_time"), u_time);
 
-    float a_focal_point = pow(focal_point, 2);
-    glm::vec3 t_right = glm::normalize(glm::cross(forwardDirection * a_focal_point, up));
-    glm::vec3 t_up = glm::normalize(glm::cross(t_right, forwardDirection * a_focal_point));
-    glm::vec3 t_lookpoint = origin + forwardDirection * a_focal_point;
+    glUniform3fv(shader.UniformLocation("origin"), 1, glm::value_ptr(origin));
+    glUniformMatrix3fv(shader.UniformLocation("rotMat"), 1, GL_FALSE, glm::value_ptr(rotMat));
 
-    const float aperture = 0.001;
-    for(int i = 0; i < n; i++)
-    {
-      glm::vec3 bokeh = t_right * cosf(i * 2 * M_PI / n) + t_up * sinf(i * 2 * M_PI / n);
-      glm::vec3 t_origin =  origin + aperture * bokeh;
-      glm::vec3 t_dir = glm::normalize(t_lookpoint - t_origin);
-      glm::mat3 t_rotMat = LookAt(t_dir, t_up);
-
-      glUniform3fv(shader.UniformLocation("origin"), 1, glm::value_ptr(t_origin));
-      glUniformMatrix3fv(shader.UniformLocation("rotMat"), 1, GL_FALSE, glm::value_ptr(t_rotMat));
-
-      glDrawArrays(GL_TRIANGLES, 0, vertices.size() / 2);
-    }
+    glDrawArrays(GL_TRIANGLES, 0, vertices.size() / 2);
 
     window.SwapBuffers();
     second = std::clock();
+    Log::Status(std::to_string(1/delta) + glm::to_string(origin));
   }
   return 0;
 }
